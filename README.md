@@ -15,7 +15,8 @@ It supports **Standard**, **Scientific**, and **Electrical Engineering (EE)** mo
 - **Modal-Based EE Calculations** – Step-by-step input prompts for engineering formulas.
 
 ## 🖼 Screenshot
-
+![Image](https://github.com/user-attachments/assets/9d9001f7-4b81-48f1-877f-1d76bad10d83)
+![Image](https://github.com/user-attachments/assets/fe8e9b09-aadd-4481-8ca7-a5aeac49d45d)
 
 ## 📂 Project Structure
 - `index.html` – Main HTML structure, styles, and scripts.
