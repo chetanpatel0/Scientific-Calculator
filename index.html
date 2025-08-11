@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Engineering & Scientific Calculator</title>
+    <style>
+        /* --- Base Styles (Including previous fixes) --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; font-smooth: always; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        html, body { height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, Arial, sans-serif; display: flex; justify-content: center; background: linear-gradient(135deg, #1a1a2e, #16213e); color: #e0e0e0; transition: background 0.3s ease; overflow: hidden; }
+        #calculator { width: 100%; height: 100%; background: rgba(15, 15, 30, 0.9); border-radius: 0; box-shadow: none; overflow: hidden; border: none; backdrop-filter: blur(8px); display: flex; flex-direction: column; transition: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, width 0.3s ease, height 0.3s ease, border-radius 0.3s ease; position: relative; }
+        @media (min-width: 600px) { html, body { align-items: center; } #calculator { width: 95%; height: 90vh; max-width: 500px; max-height: 850px; border-radius: 15px; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); } }
+        @media (min-width: 600px) and (min-height: 900px) { #calculator { height: 850px; } }
+        #theme-toggle { position: absolute; top: max(10px, env(safe-area-inset-top, 10px)); right: 10px; background: rgba(255, 255, 255, 0.1); color: #e0e0e0; border: 1px solid rgba(255, 255, 255, 0.2); padding: 7px 11px; border-radius: 20px; cursor: pointer; font-size: 0.8em; z-index: 1100; transition: background 0.2s ease, color 0.2s ease, border 0.2s ease; -webkit-user-select: none; user-select: none; }
+        #theme-toggle:hover { background: rgba(255, 255, 255, 0.25); }
+        @media (min-width: 600px) { #theme-toggle { top: 15px; right: 15px; } }
+        #calculator-tabs { display: flex; background: rgba(0, 0, 0, 0.25); padding: 6px 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0; transition: background 0.3s ease, border-bottom 0.3s ease; position: relative; z-index: 10; }
+        .tab-link { flex: 1; padding: 9px 5px; text-align: center; cursor: pointer; background: transparent; border: none; color: #a0a0a0; font-size: 0.85em; border-radius: 6px; margin: 0 3px; transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease; font-weight: 500; outline: none; }
+        .tab-link.active { background: rgba(255, 152, 0, 0.7); color: #1a1a2e; font-weight: 600; }
+        .tab-link:not(.active):hover { background: rgba(255, 255, 255, 0.1); color: #e0e0e0; }
+        .tab-link:active { transform: scale(0.96); }
+        #calculator-display { background: rgba(0, 0, 0, 0.4); padding: 10px 18px; text-align: right; min-height: 90px; display: flex; flex-direction: column; justify-content: flex-end; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0; position: relative; transition: background 0.3s ease, border-bottom 0.3s ease; }
+        #display-history { font-size: 0.85em; color: #a0a0a0; height: 22px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; opacity: 0.8; margin-bottom: 4px; transition: color 0.3s ease; }
+        #display-current { font-family: inherit; font-size: 2.2em; font-weight: 500; min-height: 48px; line-height: 1.15; color: #e8e8e8; background-color: transparent; border: none; outline: none; text-align: right; width: 100%; padding: 0; margin: 0; caret-color: #ff9800; transition: color 0.3s ease, font-size 0.2s ease; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        #display-current:not([readonly]) { cursor: text; }
+        #display-current[readonly] { cursor: default; user-select: none; }
+        #display-current.small-text { font-size: 1.7em; } #display-current.very-small-text { font-size: 1.4em; }
+        #display-current.error-text { color: #ff7878; font-size: 1.4em; user-select: text; }
+        #calculator-buttons-container { flex-grow: 1; position: relative; background: rgba(0, 0, 0, 0.2); overflow: hidden; transition: background 0.3s ease; }
+        .button-panel { display: block; gap: 1px; height: 100%; position: absolute; top: 0; left: 100%; width: 100%; opacity: 0; visibility: hidden; transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease; transform: translateX(-100%); background: inherit; padding: 1px; grid-auto-rows: minmax(0, 1fr); }
+        .button-panel.active { opacity: 1; visibility: visible; z-index: 1; transform: translateX(0); left: 0; }
+        #panel-standard, #panel-scientific, #panel-ee { display: grid; }
+        #panel-standard { grid-template-columns: repeat(4, 1fr); } #panel-scientific { grid-template-columns: repeat(5, 1fr); } #panel-ee { grid-template-columns: repeat(4, 1fr); }
+        .calc-button { background: rgba(40, 40, 60, 0.75); border: none; color: #e0e0e0; font-size: 1.1em; height: 100%; width: 100%; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease; display: flex; justify-content: center; align-items: center; text-align: center; min-height: 48px; font-weight: 400; position: relative; overflow: hidden; -webkit-appearance: none; -moz-appearance: none; appearance: none; outline: none; -webkit-user-select: none; user-select: none; }
+        .calc-button span { display: inline-block; } .calc-button sup, .calc-button sub { font-size: 0.6em; position: relative; top: -0.2em; } .calc-button sub { top: 0.2em; }
+        .calc-button:active { transform: scale(0.96); background: rgba(60, 60, 90, 0.9); }
+        .calc-button.number { background-color: rgba(60, 60, 80, 0.75); } .calc-button.operator { background-color: rgba(255, 152, 0, 0.75); color: #1a1a2e; font-weight: 500; } .calc-button.function { background-color: rgba(80, 80, 120, 0.75); } .calc-button.ee-func { background-color: rgba(0, 120, 150, 0.75); font-size: 0.9em; } .calc-button.control { background-color: rgba(200, 50, 50, 0.75); color: white; } .calc-button.equals { background-color: rgba(0, 180, 80, 0.75); color: white; font-weight: 500; } .calc-button.constant { background-color: rgba(150, 100, 200, 0.75); } .calc-button.toggle { background-color: rgba(100, 100, 100, 0.75); font-size: 0.9em; } .calc-button.comma { background-color: rgba(100, 100, 100, 0.7); }
+        @media (hover: hover) { .calc-button.number:hover { background-color: rgba(80, 80, 100, 0.9); } .calc-button.operator:hover { background-color: rgba(255, 170, 50, 0.9); } .calc-button.function:hover { background-color: rgba(100, 100, 140, 0.9); } .calc-button.ee-func:hover { background-color: rgba(30, 150, 180, 0.9); } .calc-button.control:hover { background-color: rgba(220, 70, 70, 0.9); } .calc-button.equals:hover { background-color: rgba(30, 200, 100, 0.9); } .calc-button.constant:hover { background-color: rgba(170, 120, 220, 0.9); } .calc-button.toggle:hover { background-color: rgba(120, 120, 120, 0.9); } .calc-button.comma:hover { background-color: rgba(120, 120, 120, 0.85); } }
+        .span-two { grid-column: span 2; }
+        #ad-banner { padding: 6px; background: rgba(0, 0, 0, 0.5); text-align: center; font-size: 0.75em; color: #777; min-height: 28px; flex-shrink: 0; line-height: 1.3; transition: background 0.3s ease, color 0.3s ease; border-top: 1px solid rgba(255, 255, 255, 0.1); position: relative; z-index: 5; }
+        /* --- Light Theme --- */
+        body.light-theme { background: linear-gradient(135deg, #f2f6f8, #e8ebed); color: #333; }
+        .light-theme #calculator { background: rgba(248, 249, 250, 0.98); border: 1px solid #d8dde1; }
+        @media (max-width: 599.98px) { .light-theme #calculator { border: none; box-shadow: none; } }
+        .light-theme #theme-toggle { background: rgba(0, 0, 0, 0.08); color: #333; border: 1px solid rgba(0, 0, 0, 0.15); } .light-theme #theme-toggle:hover { background: rgba(0, 0, 0, 0.15); }
+        .light-theme #calculator-tabs { background: #e2e6ea; border-bottom: 1px solid #ced4da; } .light-theme .tab-link { color: #555; } .light-theme .tab-link.active { background: #ff9800; color: white; } .light-theme .tab-link:not(.active):hover { background: rgba(0, 0, 0, 0.05); color: #222; }
+        .light-theme #calculator-display { background: rgba(233, 236, 239, 0.95); border-bottom: 1px solid #ced4da; } .light-theme #display-history { color: #6c757d; } .light-theme #display-current { color: #212529; caret-color: #ff9800; } .light-theme #display-current.error-text { color: #dc3545; }
+        .light-theme #calculator-buttons-container { background: #dee2e6; }
+        .light-theme .calc-button { background: #f8f9fa; color: #343a40; } .light-theme .calc-button:active { background: #d3d9df; transform: scale(0.96); } .light-theme .calc-button.number { background-color: #fff; } .light-theme .calc-button.operator { background-color: #ff9800; color: white; } .light-theme .calc-button.function { background-color: #dbe4ff; } .light-theme .calc-button.ee-func { background-color: #c5f6fa; } .light-theme .calc-button.control { background-color: #e57373; color: white; } .light-theme .calc-button.equals { background-color: #81c784; color: white; } .light-theme .calc-button.constant { background-color: #d1c4e9; } .light-theme .calc-button.toggle { background-color: #e9ecef; } .light-theme .calc-button.comma { background-color: #e9ecef; }
+        @media (hover: hover) { .light-theme .calc-button.number:hover { background-color: #f1f3f5; } .light-theme .calc-button.operator:hover { background-color: #ffa726; } .light-theme .calc-button.function:hover { background-color: #d0d9f7; } .light-theme .calc-button.ee-func:hover { background-color: #b2f1f8; } .light-theme .calc-button.control:hover { background-color: #ef9a9a; } .light-theme .calc-button.equals:hover { background-color: #a5d6a7; } .light-theme .calc-button.constant:hover { background-color: #dcd1f0; } .light-theme .calc-button.toggle:hover { background-color: #dfe3e7; } .light-theme .calc-button.comma:hover { background-color: #dfe3e7; } }
+        .light-theme #ad-banner { background: #e9ecef; color: #495057; border-top: 1px solid #ced4da; }
+        /* --- EE Modal Styles --- */
+        #ee-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0s linear 0.3s; } #ee-modal-overlay.visible { opacity: 1; visibility: visible; transition: opacity 0.3s ease; } #ee-modal { background: #2a2a3a; padding: 25px; border-radius: 10px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4); width: 90%; max-width: 380px; transform: scale(0.9); opacity: 0; transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease; } #ee-modal-overlay.visible #ee-modal { transform: scale(1); opacity: 1; } #ee-modal h3 { margin-top: 0; margin-bottom: 20px; color: #e0e0e0; text-align: center; font-weight: 500; } .ee-modal-input-group { margin-bottom: 15px; } .ee-modal-input-group label { display: block; margin-bottom: 5px; color: #b0b0b0; font-size: 0.9em; } .ee-modal-input-group input { width: 100%; padding: 10px; border: 1px solid #444; background: #1e1e2e; color: #e0e0e0; border-radius: 5px; font-size: 1em; transition: border-color 0.2s ease, background-color 0.2s ease; -moz-appearance: textfield; } .ee-modal-input-group input::-webkit-outer-spin-button, .ee-modal-input-group input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } .ee-modal-input-group input:focus { outline: none; border-color: #ff9800; background: #252535; } #ee-modal-buttons { display: flex; justify-content: space-between; margin-top: 25px; } #ee-modal-buttons button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.95em; transition: background-color 0.2s ease, transform 0.1s ease; flex-basis: 48%; outline: none; } #ee-modal-calculate { background-color: #00b450; color: white; } #ee-modal-cancel { background-color: #6c757d; color: white; } #ee-modal-calculate:hover { background-color: #00a048; } #ee-modal-cancel:hover { background-color: #5a6268; } #ee-modal-buttons button:active { transform: scale(0.97); } #ee-modal-error { color: #ff7878; font-size: 0.85em; text-align: center; margin-top: 15px; min-height: 1.2em; }
+        /* --- Light Theme Modal --- */
+        .light-theme #ee-modal { background: #ffffff; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15); border: 1px solid #d8dde1; } .light-theme #ee-modal h3 { color: #333; } .light-theme .ee-modal-input-group label { color: #555; } .light-theme .ee-modal-input-group input { border: 1px solid #ced4da; background: #f8f9fa; color: #333; } .light-theme .ee-modal-input-group input:focus { border-color: #ff9800; background: #fff; } .light-theme #ee-modal-calculate { background-color: #81c784; color: white; } .light-theme #ee-modal-cancel { background-color: #adb5bd; color: white; } .light-theme #ee-modal-calculate:hover { background-color: #72b475; } .light-theme #ee-modal-cancel:hover { background-color: #9fa8b0; } .light-theme #ee-modal-error { color: #dc3545; }
+        /* --- Responsive Adjustments --- */
+        @media (max-width: 400px) { .calc-button { font-size: 1em; min-height: 45px;} #display-current { font-size: 1.9em; min-height: 44px; } #display-current.small-text { font-size: 1.5em; } #display-current.very-small-text { font-size: 1.2em; } #display-history { font-size: 0.8em; height: 20px; } .tab-link { font-size: 0.8em; padding: 8px 4px; } #panel-scientific { grid-template-columns: repeat(4, 1fr); } #panel-scientific .equals { grid-column: span 1; } #panel-scientific .number[data-value="0"] { grid-column: span 2; } .calc-button.ee-func { font-size: 0.8em; } #ee-modal h3 { font-size: 1.1em; margin-bottom: 15px; } #ee-modal { padding: 20px; } }
+        @media (max-height: 650px) { #calculator-display { min-height: 80px; padding: 8px 15px;} #display-current { font-size: 1.8em; min-height: 40px; } #display-current.small-text { font-size: 1.4em; } #display-current.very-small-text { font-size: 1.1em; } #display-history { height: 18px; font-size: 0.75em; } .calc-button { min-height: 40px; font-size: 1.0em; } #ad-banner { padding: 4px; font-size: 0.7em; min-height: 24px;} .tab-link { padding: 7px 4px; font-size: 0.8em;} .calc-button.ee-func { font-size: 0.8em; } }
+        @media (max-height: 550px) { .calc-button { min-height: 35px; } #display-history { margin-bottom: 2px; height: 16px; font-size: 0.7em;} #display-current { min-height: 36px; font-size: 1.6em;} #display-current.small-text { font-size: 1.3em; } #display-current.very-small-text { font-size: 1.0em; } #calculator-display { min-height: 70px; padding: 5px 12px;} }
+        /* --- Accessibility Focus --- */
+        .calc-button:focus-visible, .tab-link:focus-visible, #theme-toggle:focus-visible, #privacy-policy-link:focus-visible { outline: 2px solid #ff9800; outline-offset: -2px; }
+
+        /* --- About Panel Styling --- */
+        #panel-about { padding: 20px; text-align: left; color: inherit; overflow-y: auto; height: 100%; display: block; }
+        #panel-about h2 { font-size: 1.4em; margin-bottom: 15px; color: #ffb74d; font-weight: 500; border-bottom: 1px solid rgba(255, 255, 255, 0.2); padding-bottom: 8px; }
+        .light-theme #panel-about h2 { color: #ff9800; border-bottom-color: rgba(0, 0, 0, 0.1); }
+        #panel-about p { margin-bottom: 12px; line-height: 1.6; font-size: 0.95em; }
+        #panel-about a { color: #82b1ff; text-decoration: none; transition: color 0.2s ease; }
+        #panel-about a:hover { color: #aadcff; text-decoration: underline; }
+        .light-theme #panel-about a { color: #0056b3; } .light-theme #panel-about a:hover { color: #003d80; }
+        #panel-about .contact-info { margin-top: 20px; margin-bottom: 25px; /* Space before policy link */ font-size: 0.9em; opacity: 0.9; }
+
+        /* --- Creator Name Animation --- */
+        .creator-name-animated {
+            display: inline-block; /* Needed for animation */
+            animation: pulseColor 3s infinite ease-in-out;
+        }
+        @keyframes pulseColor {
+            0%, 100% { color: inherit; /* Start/end with default text color */ }
+            50% { color: #ffcb7a; /* Midpoint color */ }
+        }
+        .light-theme .creator-name-animated {
+             animation-name: pulseColorLight; /* Use different animation for light theme if needed */
+        }
+        @keyframes pulseColorLight {
+             0%, 100% { color: inherit; }
+             50% { color: #e68a00; } /* Darker orange for light theme pulse */
+        }
+
+
+        /* --- Privacy Policy Link/Button --- */
+        #privacy-policy-link {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #c0c0c0;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            text-align: center;
+            transition: background 0.2s ease, color 0.2s ease;
+            margin-top: 15px; /* Ensure space above */
+        }
+        #privacy-policy-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #e0e0e0;
+        }
+        .light-theme #privacy-policy-link {
+            background: rgba(0, 0, 0, 0.05);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #555;
+        }
+        .light-theme #privacy-policy-link:hover {
+            background: rgba(0, 0, 0, 0.1);
+            color: #333;
+        }
+
+        /* --- NEW: Privacy Policy Modal Styles --- */
+        #privacy-modal-overlay {
+            /* Uses same base styles as #ee-modal-overlay */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.65); /* Slightly darker overlay */ display: flex; justify-content: center; align-items: center; z-index: 1050; /* Above EE modal overlay just in case */ opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+        }
+        #privacy-modal-overlay.visible {
+            opacity: 1; visibility: visible; transition: opacity 0.3s ease;
+        }
+        #privacy-modal {
+            background: #252535; /* Slightly different background */
+            padding: 20px 25px 25px 25px; /* Adjust padding */
+            border-radius: 8px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 550px; /* Can be wider for text */
+            max-height: 80vh; /* Limit height and allow scroll */
+            overflow-y: auto; /* Scroll if content too long */
+            transform: scale(0.95); opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease;
+            position: relative; /* For close button */
+            color: #d0d0d0; /* Default text color */
+        }
+        #privacy-modal-overlay.visible #privacy-modal {
+            transform: scale(1); opacity: 1;
+        }
+        #privacy-modal h3 {
+            margin-top: 0; margin-bottom: 18px; text-align: center; color: #e8e8e8; font-weight: 500; border-bottom: 1px solid #444; padding-bottom: 10px;
+        }
+        #privacy-modal p {
+            margin-bottom: 12px; line-height: 1.6; font-size: 0.9em;
+        }
+        #privacy-modal strong {
+            color: #ffcb7a; /* Highlight strong text */
+        }
+        #privacy-modal a { color: #82b1ff; text-decoration: underline; }
+        #privacy-modal a:hover { color: #aadcff; }
+        #privacy-modal-close {
+            position: absolute; top: 8px; right: 10px; background: transparent; border: none; font-size: 1.8em; color: #888; cursor: pointer; line-height: 1; padding: 5px; transition: color 0.2s ease; }
+        #privacy-modal-close:hover { color: #ccc; }
+
+        /* Light Theme Privacy Modal */
+        .light-theme #privacy-modal { background: #fdfdfd; box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15); border: 1px solid #e0e0e0; color: #444; }
+        .light-theme #privacy-modal h3 { color: #333; border-bottom-color: #ddd; }
+        .light-theme #privacy-modal strong { color: #c06000; }
+        .light-theme #privacy-modal a { color: #0056b3; } .light-theme #privacy-modal a:hover { color: #003d80; }
+        .light-theme #privacy-modal-close { color: #aaa; } .light-theme #privacy-modal-close:hover { color: #666; }
+
+    </style>
+</head>
+<body>
+    <button id="theme-toggle" aria-label="Toggle Theme">☀️/🌙</button>
+
+    <div id="calculator" role="application">
+        <!-- Tab Navigation -->
+        <div id="calculator-tabs" role="tablist">
+            <button class="tab-link active" data-tab="standard" id="standard-tab" role="tab" aria-selected="true" aria-controls="panel-standard">Standard</button>
+            <button class="tab-link" data-tab="scientific" id="scientific-tab" role="tab" aria-selected="false" aria-controls="panel-scientific">Scientific</button>
+            <button class="tab-link" data-tab="ee" id="ee-tab" role="tab" aria-selected="false" aria-controls="panel-ee">EE</button>
+            <button class="tab-link" data-tab="about" id="about-tab" role="tab" aria-selected="false" aria-controls="panel-about">About</button>
+        </div>
+
+        <!-- Display -->
+        <div id="calculator-display">
+             <div id="display-history" aria-live="polite"></div>
+             <input type="text" id="display-current" value="0" readonly aria-label="Calculator display" aria-live="assertive">
+        </div>
+
+        <!-- Button Panels Container -->
+        <div id="calculator-buttons-container">
+            <!-- Panel 1: Standard (Unchanged) -->
+            <div id="panel-standard" class="button-panel active" role="tabpanel" aria-labelledby="standard-tab">
+                <!-- Standard Buttons... -->
+                <button class="calc-button control" data-action="clear" aria-label="Clear Entry">C</button><button class="calc-button control" data-action="all-clear" aria-label="All Clear">AC</button><button class="calc-button operator" data-op="%" aria-label="Percent">%</button><button class="calc-button operator" data-op="/" aria-label="Divide">÷</button><button class="calc-button number" data-value="7">7</button><button class="calc-button number" data-value="8">8</button><button class="calc-button number" data-value="9">9</button><button class="calc-button operator" data-op="*" aria-label="Multiply">×</button><button class="calc-button number" data-value="4">4</button><button class="calc-button number" data-value="5">5</button><button class="calc-button number" data-value="6">6</button><button class="calc-button operator" data-op="-" aria-label="Subtract">-</button><button class="calc-button number" data-value="1">1</button><button class="calc-button number" data-value="2">2</button><button class="calc-button number" data-value="3">3</button><button class="calc-button operator" data-op="+" aria-label="Add">+</button><button class="calc-button function" data-func="negate" aria-label="Negate">+/-</button><button class="calc-button number" data-value="0">0</button><button class="calc-button number" data-value="." aria-label="Decimal Point">.</button><button class="calc-button equals" data-action="equals" aria-label="Equals">=</button>
+            </div>
+            <!-- Panel 2: Scientific (Unchanged) -->
+            <div id="panel-scientific" class="button-panel" role="tabpanel" aria-labelledby="scientific-tab" aria-hidden="true">
+                <!-- Scientific Buttons... -->
+                <button class="calc-button function" data-func="sin" aria-label="Sine">sin</button><button class="calc-button function" data-func="cos" aria-label="Cosine">cos</button><button class="calc-button function" data-func="tan" aria-label="Tangent">tan</button><button class="calc-button toggle" data-action="toggle-angle" aria-label="Toggle Angle Mode Degrees/Radians">Deg</button><button class="calc-button control" data-action="clear" aria-label="Clear Entry">C</button><button class="calc-button function" data-func="asin" aria-label="Inverse Sine">sin⁻¹</button><button class="calc-button function" data-func="acos" aria-label="Inverse Cosine">cos⁻¹</button><button class="calc-button function" data-func="atan" aria-label="Inverse Tangent">tan⁻¹</button><button class="calc-button function" data-func="inv" aria-label="Reciprocal">1/x</button><button class="calc-button control" data-action="all-clear" aria-label="All Clear">AC</button><button class="calc-button function" data-func="pow" data-value="^" aria-label="Power">xʸ</button><button class="calc-button function" data-func="sqrt" aria-label="Square Root">√</button><button class="calc-button function" data-func="abs" aria-label="Absolute Value">|x|</button><button class="calc-button function" data-func="fact" aria-label="Factorial">n!</button><button class="calc-button operator" data-op="%" aria-label="Percent">%</button><button class="calc-button function" data-func="log" aria-label="Log base 10">log</button><button class="calc-button function" data-func="ln" aria-label="Natural Log">ln</button><button class="calc-button function" data-func="exp" aria-label="Exponent e to the x">eˣ</button><button class="calc-button constant" data-const="E" aria-label="Euler's number">e</button><button class="calc-button operator" data-op="/" aria-label="Divide">÷</button><button class="calc-button number" data-value="7">7</button><button class="calc-button number" data-value="8">8</button><button class="calc-button number" data-value="9">9</button><button class="calc-button constant" data-const="PI" aria-label="Pi">π</button><button class="calc-button operator" data-op="*" aria-label="Multiply">×</button><button class="calc-button number" data-value="4">4</button><button class="calc-button number" data-value="5">5</button><button class="calc-button number" data-value="6">6</button><button class="calc-button function" data-func="negate" aria-label="Negate">+/-</button><button class="calc-button operator" data-op="-" aria-label="Subtract">-</button><button class="calc-button number" data-value="1">1</button><button class="calc-button number" data-value="2">2</button><button class="calc-button number" data-value="3">3</button><button class="calc-button constant" data-const="C" aria-label="Speed of light">c</button><button class="calc-button operator" data-op="+" aria-label="Add">+</button><button class="calc-button number span-two" data-value="0">0</button><button class="calc-button number" data-value="." aria-label="Decimal Point">.</button><button class="calc-button number" data-value="E" aria-label="Scientific Notation Exponent">EE</button><button class="calc-button equals" data-action="equals" aria-label="Equals">=</button>
+            </div>
+            <!-- Panel 3: EE (Unchanged) -->
+            <div id="panel-ee" class="button-panel" role="tabpanel" aria-labelledby="ee-tab" aria-hidden="true">
+                 <!-- EE Buttons... -->
+                 <button class="calc-button ee-func" data-ee="ohms" title="Voltage (V = I × R)" aria-label="Calculate Voltage from Current and Resistance">V=IR</button><button class="calc-button ee-func" data-ee="current" title="Current (I = V / R)" aria-label="Calculate Current from Voltage and Resistance">I=V/R</button><button class="calc-button ee-func" data-ee="resistance" title="Resistance (R = V / I)" aria-label="Calculate Resistance from Voltage and Current">R=V/I</button><button class="calc-button ee-func" data-ee="power_vi" title="Power (P = V × I)" aria-label="Calculate Power from Voltage and Current">P=VI</button><button class="calc-button ee-func" data-ee="power_i2r" title="Power (P = I² × R)" aria-label="Calculate Power from Current and Resistance">P=I²R</button><button class="calc-button ee-func" data-ee="power_v2r" title="Power (P = V² / R)" aria-label="Calculate Power from Voltage and Resistance">P=V²/R</button><button class="calc-button ee-func" data-ee="db_power" title="Decibels (Power Ratio: 10log₁₀(P₂/P₁))" aria-label="Calculate Decibel Power Gain">dB<small>p</small></button><button class="calc-button ee-func" data-ee="db_voltage" title="Decibels (Voltage Ratio: 20log₁₀(V₂/V₁))" aria-label="Calculate Decibel Voltage Gain">dB<small>v</small></button><button class="calc-button ee-func" data-ee="freq_wl" title="Wavelength (λ = c / f)" aria-label="Calculate Wavelength from Frequency">λ=c/f</button><button class="calc-button ee-func" data-ee="wl_freq" title="Frequency (f = c / λ)" aria-label="Calculate Frequency from Wavelength">f=c/λ</button><button class="calc-button ee-func" data-ee="react_cap" title="Capacitive Reactance (Xc = 1 / (2πfC))" aria-label="Calculate Capacitive Reactance">Xc</button><button class="calc-button ee-func" data-ee="react_ind" title="Inductive Reactance (Xʟ = 2πfL)" aria-label="Calculate Inductive Reactance">Xʟ</button><button class="calc-button ee-func" data-ee="res_freq" title="Resonance Freq (fr = 1 / (2π√(LC)))" aria-label="Calculate Resonant Frequency">f<small>r</small></button><button class="calc-button ee-func" data-ee="impedance_rlc" title="Impedance (Z = √(R² + (Xʟ-Xc)²))" aria-label="Calculate RLC Impedance">Z<small>RLC</small></button><button class="calc-button ee-func" data-ee="filter_rc_lp" title="RC Low-Pass Cutoff (fc = 1/(2πRC))" aria-label="Calculate RC Low-Pass Filter Cutoff Frequency">LP f<small>c</small></button><button class="calc-button ee-func" data-ee="filter_rl_hp" title="RL High-Pass Cutoff (fc = R/(2πL))" aria-label="Calculate RL High-Pass Filter Cutoff Frequency">HP f<small>c</small></button><button class="calc-button control" data-action="clear" aria-label="Clear Entry">C</button><button class="calc-button control" data-action="all-clear" aria-label="All Clear">AC</button><button class="calc-button constant" data-const="PI" aria-label="Pi">π</button><button class="calc-button constant" data-const="C" aria-label="Speed of light">c</button><button class="calc-button number" data-value="7">7</button><button class="calc-button number" data-value="8">8</button><button class="calc-button number" data-value="9">9</button><button class="calc-button function" data-func="negate" aria-label="Negate">+/-</button><button class="calc-button number" data-value="4">4</button><button class="calc-button number" data-value="5">5</button><button class="calc-button number" data-value="6">6</button><button class="calc-button number" data-value="E" aria-label="Scientific Notation Exponent">EE</button><button class="calc-button number" data-value="1">1</button><button class="calc-button number" data-value="2">2</button><button class="calc-button number" data-value="3">3</button><button class="calc-button number" data-value="." aria-label="Decimal Point">.</button><button class="calc-button number span-two" data-value="0">0</button><button class="calc-button equals span-two" data-action="equals" aria-label="Equals">=</button>
+            </div>
+            <!-- Panel 4: About (Updated) -->
+            <div id="panel-about" class="button-panel about-panel-content" role="tabpanel" aria-labelledby="about-tab" aria-hidden="true">
+                <h2>About This Calculator</h2>
+                <p>
+                    This is a versatile calculator designed for standard arithmetic, scientific functions,
+                    and specific Electrical Engineering calculations.
+                </p>
+                <p>
+                    It features different modes accessible via the tabs above, including essential EE formulas
+                    like Ohm's Law, power calculations, reactance, resonance, and more. The display supports
+                    editing, and the interface adapts for both desktop and mobile use.
+                </p>
+                <p>
+                    This project aims to provide a useful tool for students and professionals.
+                    <!-- Removed sentence about privacy policy -->
+                </p>
+                <div class="contact-info">
+                     <!-- Added span with class for animation -->
+                    <p><strong>Creator:</strong> <span class="creator-name-animated">Chetankumar V Patel</span></p>
+                    <p>
+                        <strong>Contact:</strong>
+                        <!-- Updated Email -->
+                        <a href="mailto:patelchetan@pm.me" target="_blank" rel="noopener noreferrer">patelchetan@pm.me</a> |
+                        <a href="https://t.me/patel_chetan" target="_blank" rel="noopener noreferrer">Telegram: @patel_chetan</a>
+                    </p>
+                </div>
+
+                <!-- Privacy Policy Link/Button -->
+                <button id="privacy-policy-link" aria-haspopup="dialog">Privacy Policy</button>
+
+            </div>
+        </div>
+
+        <!-- Ad Banner Placeholder -->
+        <div id="ad-banner"> Ad Placeholder </div>
+    </div>
+
+    <!-- EE Calculation Modal (Unchanged) -->
+    <div id="ee-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ee-modal-title" aria-hidden="true">
+        <div id="ee-modal"> <h3 id="ee-modal-title">EE Calculation</h3> <div id="ee-modal-inputs"></div> <div id="ee-modal-error" aria-live="assertive"></div> <div id="ee-modal-buttons"> <button id="ee-modal-cancel">Cancel</button> <button id="ee-modal-calculate">Calculate</button> </div> </div>
+    </div>
+
+    <!-- NEW: Privacy Policy Modal -->
+    <div id="privacy-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="privacy-modal-title" aria-hidden="true">
+        <div id="privacy-modal">
+            <button id="privacy-modal-close" aria-label="Close Privacy Policy">&times;</button>
+            <h3 id="privacy-modal-title">Privacy Policy</h3>
+
+            <p>This Privacy Policy describes how this Calculator application ("we," "us," or "our") handles information when you use our service.</p>
+
+            <p><strong>Information We Collect:**</p>
+            <p>We currently do not collect any personally identifiable information (PII) directly through the core functionality of the calculator itself. Calculations are performed locally on your device.</p>
+
+            <p><strong>Third-Party Services (Advertising):**</p>
+            <p>If this application integrates advertising services (such as Google AdSense or AdMob), these third-party services may collect information about your device and usage to serve relevant ads. This may include:</p>
+            <ul>
+                <li>Device identifiers (like advertising ID)</li>
+                <li>IP address</li>
+                <li>Location information (approximate)</li>
+                <li>Information about your interaction with ads</li>
+                <li>Cookies or similar technologies</li>
+            </ul>
+            <p>These third parties have their own privacy policies governing how they use your data. We recommend you review their policies. For Google Ads:</p>
+            <ul>
+                 <li><a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer">How Google uses information from sites or apps that use our services</a></li>
+                 <li><a href="https://adssettings.google.com/authenticated" target="_blank" rel="noopener noreferrer">Google Ad Settings (to manage personalization)</a></li>
+            </ul>
+
+            <p><strong>Data Usage:**</p>
+            <p>Any data collected by third-party ad networks is used primarily to display advertisements within the application and potentially personalize them based on your interests. We do not use this data for other purposes.</p>
+
+            <p><strong>Data Security:**</p>
+            <p>We take reasonable measures to protect any information within our control, but remember that no method of transmission over the internet or electronic storage is 100% secure.</p>
+
+             <p><strong>Children's Privacy:**</p>
+            <p>This application is not intended for children under the age of 13 (or applicable age in your region). We do not knowingly collect personal information from children.</p>
+
+             <p><strong>Changes to This Policy:**</p>
+            <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy within the application or on an associated website. You are advised to review this Privacy Policy periodically for any changes.</p>
+
+             <p><strong>Contact Us:**</p>
+            <p>If you have any questions about this Privacy Policy, please contact us at: <a href="mailto:patelchetan@pm.me">patelchetan@pm.me</a></p>
+
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements --- (Add Privacy Modal elements)
+            const displayCurrent = document.getElementById('display-current');
+            const displayHistory = document.getElementById('display-history');
+            const themeToggleButton = document.getElementById('theme-toggle');
+            const buttonsContainer = document.getElementById('calculator-buttons-container');
+            const tabLinks = document.querySelectorAll('.tab-link');
+            const buttonPanels = document.querySelectorAll('.button-panel');
+            const calculatorBody = document.body;
+            const calculatorElement = document.getElementById('calculator');
+            // EE Modal Elements...
+            const eeModalOverlay = document.getElementById('ee-modal-overlay');
+            const eeModal = document.getElementById('ee-modal');
+            const eeModalTitle = document.getElementById('ee-modal-title');
+            const eeModalInputsContainer = document.getElementById('ee-modal-inputs');
+            const eeModalError = document.getElementById('ee-modal-error');
+            const eeModalCalculateButton = document.getElementById('ee-modal-calculate');
+            const eeModalCancelButton = document.getElementById('ee-modal-cancel');
+            // NEW Privacy Modal Elements
+            const privacyModalOverlay = document.getElementById('privacy-modal-overlay');
+            const privacyModal = document.getElementById('privacy-modal');
+            const privacyModalCloseButton = document.getElementById('privacy-modal-close');
+            const privacyPolicyLink = document.getElementById('privacy-policy-link');
+
+
+            // --- State Variables --- (same as before)
+            let currentInput = '0'; let previousInput = ''; let operation = null;
+            let resultDisplayed = false; let angleMode = 'Deg'; let history = '';
+            let isErrorState = false; let activeEEFunc = null; let displayFontSizeState = 'normal';
+
+            // --- Constants --- (same as before)
+            const CONSTANTS = { PI: Math.PI, E: Math.E, C: 299792458 };
+            const TWO_PI = 2 * Math.PI;
+            const DISPLAY_LENGTH_THRESHOLD_SMALL = 16;
+            const DISPLAY_LENGTH_THRESHOLD_VERY_SMALL = 22;
+            const MAX_INPUT_LENGTH = 30;
+
+            // --- Core Functions (updateDisplay, etc.) ---
+            // --- ... (Include the full JS from the previous correct version here) ... ---
+            function updateDisplay() { const formattedCurrent = formatDisplayNumber(currentInput); if (displayCurrent.value !== formattedCurrent) { displayCurrent.value = formattedCurrent; } displayHistory.textContent = history; adjustDisplayFontSize(formattedCurrent); displayCurrent.classList.remove('error-text'); if (isErrorState) { displayCurrent.classList.add('error-text'); displayCurrent.readOnly = true; } else if (resultDisplayed) { displayCurrent.readOnly = true; } else { displayCurrent.readOnly = false; } const activePanel = document.querySelector('.button-panel.active'); if (activePanel) { const btn = activePanel.querySelector('[data-action="toggle-angle"]'); if (btn) btn.textContent = angleMode; } }
+            function adjustDisplayFontSize(text) { const len = text ? text.length : displayCurrent.value.length; displayCurrent.classList.remove('small-text', 'very-small-text'); displayFontSizeState = 'normal'; if (isErrorState) { displayFontSizeState = 'error'; } else if (len > DISPLAY_LENGTH_THRESHOLD_VERY_SMALL) { displayCurrent.classList.add('very-small-text'); displayFontSizeState = 'very-small'; } else if (len > DISPLAY_LENGTH_THRESHOLD_SMALL) { displayCurrent.classList.add('small-text'); displayFontSizeState = 'small'; } }
+            function formatDisplayNumber(numStr) { if (typeof numStr !== 'string') numStr = String(numStr); if (isErrorState || numStr === undefined || numStr === null || numStr.startsWith("Error:")) return numStr || ''; if (numStr.toLowerCase().includes('e')) { try { const num = parseFloat(numStr); if (!isFinite(num)) return "Error: Overflow"; return num.toExponential(9).replace(/e\+?/, 'E'); } catch (e) { return numStr; } } try { const num = parseFloat(numStr); if (!isNaN(num)) { if (Math.abs(num) > 1e16 || (Math.abs(num) < 1e-7 && num !== 0)) { return num.toExponential(9).replace(/e\+?/, 'E'); } if (numStr.includes('.')) { const parts = numStr.split('.'); if (parts[1] && parts[1].length > 10) { return parseFloat(num.toFixed(10)).toString(); } } } } catch(e) {} return numStr.replace('e', 'E'); }
+
+
+            // --- Event Listeners ---
+
+            // Display Input Handler - Same
+            displayCurrent.addEventListener('input', handleDisplayInputChange);
+            function handleDisplayInputChange() { if (!displayCurrent.readOnly) { let vIn = displayCurrent.value; const vPat = /^-?(\d+(\.\d*)?|\.\d+)([Ee][+-]?\d*)?$/; if (vIn === '' || vIn === '-') { currentInput = vIn || '0'; } else if (vPat.test(vIn) || vIn.toLowerCase().match(/^-?(\d+(\.\d*)?|\.\d+)[Ee]$/) || vIn.toLowerCase().match(/^-?(\d+(\.\d*)?|\.\d+)[Ee][+-]$/)) { currentInput = vIn.replace('e', 'E'); } else { displayCurrent.value = formatDisplayNumber(currentInput); return; } resultDisplayed = false; isErrorState = false; if (operation) { previousInput = ''; operation = null; history = ''; } adjustDisplayFontSize(currentInput); displayCurrent.classList.remove('error-text'); } else { displayCurrent.value = formatDisplayNumber(currentInput); } }
+
+            // Button Click Handler - Same
+            buttonsContainer.addEventListener('click', (event) => { const target = event.target.closest('.calc-button'); if (!target) return; if (eeModalOverlay.classList.contains('visible') || privacyModalOverlay.classList.contains('visible')) return; if(document.activeElement === displayCurrent) displayCurrent.blur(); if (isErrorState && target.dataset.action !== 'all-clear') { clearAll(); if (!target.dataset.value && !target.dataset.const && target.dataset.action !== 'clear' && target.dataset.func !== 'negate') { updateDisplay(); return; } } const action = target.dataset.action, value = target.dataset.value, op = target.dataset.op, func = target.dataset.func, constant = target.dataset.const, eeFunc = target.dataset.ee; if (resultDisplayed && !isErrorState && (value || constant)) { if (value !== '.' && value !== 'E') currentInput = ''; } if (resultDisplayed && !isErrorState && (op || func === 'pow')) { previousInput = currentInput; currentInput = ''; } if (value || constant || op || func || action === 'clear' || action === 'backspace') { resultDisplayed = false; } if (value) handleNumberInput(value); else if (op) handleOperatorInput(op); else if (action === 'equals') performCalculation(); else if (action === 'clear') clearEntry(); else if (action === 'all-clear') clearAll(); else if (func) handleFunctionInput(func, target.dataset.value); else if (constant) handleConstantInput(constant); else if (eeFunc) showEEModal(eeFunc); else if (action === 'toggle-angle') toggleAngleMode(); updateDisplay(); });
+
+            // Keyboard Handler - Same
+            document.addEventListener('keydown', (event) => { if (eeModalOverlay.classList.contains('visible') || privacyModalOverlay.classList.contains('visible') || (event.target.tagName === 'INPUT' && event.target !== displayCurrent) || event.target.tagName === 'TEXTAREA') { if (event.key === 'Enter' && eeModalOverlay.classList.contains('visible')) { event.preventDefault(); eeModalCalculateButton.click(); } else if (event.key === 'Escape') { event.preventDefault(); if (privacyModalOverlay.classList.contains('visible')) hidePrivacyModal(); else if (eeModalOverlay.classList.contains('visible')) hideEEModal(); } return; } if (document.activeElement === displayCurrent && !['Enter', '=', 'Escape', 'Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { return; } if (isErrorState && event.key !== 'Escape' && event.key !== 'Delete') { clearAll(); if (!/[\d.\-+]/.test(event.key) && !['Backspace', 'Enter', '='].includes(event.key)) { updateDisplay(); return; } } if (resultDisplayed && !isErrorState && (/[0-9]/.test(event.key) || (event.key.toLowerCase()==='p' && event.altKey) || (event.key.toLowerCase()==='e' && event.altKey) || (event.key.toLowerCase()==='c' && event.altKey) )) { currentInput = ''; resultDisplayed = false; } if (resultDisplayed && !isErrorState && ['+', '-', '*', '/', '^'].includes(event.key) ) { previousInput = currentInput; currentInput = ''; resultDisplayed = false; } const key = event.key; let handled = true; if (key >= '0' && key <= '9') { handleNumberInput(key); resultDisplayed = false; } else if (key === '.') { handleNumberInput('.'); resultDisplayed = false; } else if (['+', '-', '*', '/'].includes(key)) { handleOperatorInput(key); resultDisplayed = false; } else if (key === '%') { handleOperatorInput('%'); } else if (key === '^') { handleOperatorInput('^'); resultDisplayed = false; } else if (key.toLowerCase() === 'e' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) { handleScientificNotationInput(); resultDisplayed = false; } else if (key === 'Enter' || key === '=') { event.preventDefault(); performCalculation(); } else if (key === 'Backspace') { event.preventDefault(); handleBackspace(); resultDisplayed = false; } else if (key === 'Delete') { clearEntry(); resultDisplayed = false; } else if (key === 'Escape') { clearAll(); resultDisplayed = false; } else if (key.toLowerCase() === 'p' && event.altKey) { event.preventDefault(); handleConstantInput('PI'); } else if (key.toLowerCase() === 'e' && event.altKey) { event.preventDefault(); handleConstantInput('E'); } else if (key.toLowerCase() === 'c' && event.altKey) { event.preventDefault(); handleConstantInput('C'); } else if (key.toLowerCase() === 's') { handleFunctionInput('sin'); } else if (key.toLowerCase() === 'c' && !event.altKey) { handleFunctionInput('cos'); } else if (key.toLowerCase() === 't') { handleFunctionInput('tan'); } else if (key.toLowerCase() === 'l') { handleFunctionInput('log'); } else if (key === '_') { handleFunctionInput('negate'); } else { handled = false; } if (handled) { event.preventDefault(); updateDisplay(); } });
+
+            // Theme Toggle Handler - Same
+            themeToggleButton.addEventListener('click', () => { const elements = [calculatorBody, calculatorElement, displayCurrent, themeToggleButton, document.getElementById('ad-banner'), ...document.querySelectorAll('.button-panel'), ...document.querySelectorAll('.tab-link'), privacyModal]; elements.forEach(el => el.style.transition = 'none'); const isLight = calculatorBody.classList.toggle('light-theme'); localStorage.setItem('calculatorTheme', isLight ? 'light' : 'dark'); themeToggleButton.textContent = isLight ? '🌙 Dark' : '☀️ Light'; void calculatorElement.offsetWidth; setTimeout(() => { elements.forEach(el => el.style.transition = ''); }, 50); });
+
+            // Tab Switching Logic - Same
+            tabLinks.forEach((link, index) => { link.addEventListener('click', () => { if (link.classList.contains('active')) return; const targetTab = link.dataset.tab; const targetPanel = document.getElementById(`panel-${targetTab}`); const currentActivePanel = document.querySelector('.button-panel.active'); const currentActiveLink = document.querySelector('.tab-link.active'); if(currentActiveLink) { currentActiveLink.classList.remove('active'); currentActiveLink.setAttribute('aria-selected', 'false'); currentActiveLink.blur(); } if (currentActivePanel) { currentActivePanel.classList.remove('active'); currentActivePanel.setAttribute('aria-hidden', 'true'); } link.classList.add('active'); link.setAttribute('aria-selected', 'true'); link.focus(); if (targetPanel) { targetPanel.classList.add('active'); targetPanel.setAttribute('aria-hidden', 'false'); updateDisplay(); } else { console.error("Target panel not found for tab:", targetTab); } }); link.addEventListener('keydown', (e) => { let newIndex = index; if (e.key === 'ArrowRight') newIndex = (index + 1) % tabLinks.length; else if (e.key === 'ArrowLeft') newIndex = (index - 1 + tabLinks.length) % tabLinks.length; else if (e.key === 'Home') newIndex = 0; else if (e.key === 'End') newIndex = tabLinks.length - 1; if (newIndex !== index) { tabLinks[newIndex].click(); e.preventDefault(); } }); });
+
+            // EE Modal Listeners - Same
+            eeModalCancelButton.addEventListener('click', hideEEModal);
+            eeModalOverlay.addEventListener('click', (event) => { if (event.target === eeModalOverlay) hideEEModal(); });
+            eeModalCalculateButton.addEventListener('click', handleEEModalCalculate);
+
+             // --- NEW: Privacy Modal Listeners ---
+             privacyPolicyLink.addEventListener('click', showPrivacyModal);
+             privacyModalCloseButton.addEventListener('click', hidePrivacyModal);
+             privacyModalOverlay.addEventListener('click', (event) => {
+                 if (event.target === privacyModalOverlay) {
+                     hidePrivacyModal();
+                 }
+             });
+
+
+            // --- Input Handling Functions (handleNumberInput etc.) ---
+            // --- ... (Include the full JS functions from the previous correct version here) ... ---
+            function handleNumberInput(value){ if (currentInput.length >= MAX_INPUT_LENGTH && !resultDisplayed) {return;} if (resultDisplayed && value !== '.' && value !== 'E') currentInput = ''; resultDisplayed = false; if (currentInput === '0' && value !== '.') currentInput = ''; if (value === '.') { const parts = currentInput.toLowerCase().split('e'); if (parts.length > 1 && parts[1].includes('.')) return; if (parts[0].includes('.')) return; } currentInput += value; isErrorState = false; }
+            function handleScientificNotationInput(){ if (resultDisplayed) { currentInput = ''; resultDisplayed = false; } if (currentInput && currentInput !== '-' && !currentInput.toLowerCase().includes('e') && !['+', '-'].includes(currentInput.slice(-1))) { if (currentInput.length < MAX_INPUT_LENGTH - 1) { currentInput += 'E'; } } isErrorState = false; }
+            function handleBackspace(){ if (resultDisplayed || isErrorState) return; if (currentInput.length > 1) { currentInput = currentInput.slice(0, -1); if (currentInput === '-') {} } else { currentInput = '0'; } }
+            function handleOperatorInput(op){ if (isErrorState) return; let isValid = currentInput !== '-' && !currentInput.toLowerCase().endsWith('e') && !currentInput.toLowerCase().endsWith('e+') && !currentInput.toLowerCase().endsWith('e-'); try { if(isValid) parseFloat(currentInput); } catch(e){ isValid = false;} if (op === '-' && (currentInput === '0' || currentInput === '') && previousInput === '' && operation === null) { currentInput = '-'; resultDisplayed = false; history = ''; return; } if (op === '-' && currentInput.toLowerCase().endsWith('e')) { if (currentInput.length < MAX_INPUT_LENGTH -1 ) currentInput += '-'; return; } if (!isValid && currentInput !== '') { return; } if (op === '%') { handlePercentage(); return; } if (op === '^') { if (currentInput === '' && previousInput === '') return; if (currentInput !== '') previousInput = currentInput; currentInput = ''; operation = op; if(previousInput) history = `${formatDisplayNumber(previousInput)} ^`; resultDisplayed = false; return; } if (operation && currentInput !== '' && previousInput !== '') { if (!performCalculation(true)) return; previousInput = currentInput; currentInput = ''; } else if (currentInput !== '') { previousInput = currentInput; currentInput = ''; } operation = op; if (previousInput) { history = `${formatDisplayNumber(previousInput)} ${getDisplayOperator(op)}`; } resultDisplayed = false; }
+            function getDisplayOperator(op){ switch(op) { case '*': return '×'; case '/': return '÷'; case '^': return '^'; default: return op; } }
+            function handlePercentage(){ if(isErrorState)return; try { let curStr=currentInput===''||currentInput==='-'?'0':currentInput; let curVal=parseFloat(curStr); if(isNaN(curVal))throw new Error("Invalid Input"); let res; if(previousInput!==''&&operation&&['+','-','*','/'].includes(operation)){ let prevVal=parseFloat(previousInput); if(isNaN(prevVal))throw new Error("Invalid Number"); let percVal; if(['+','-'].includes(operation)){percVal=prevVal*(curVal/100);}else{percVal=curVal/100;} res=evaluate(prevVal,percVal,operation); history=`${formatDisplayNumber(previousInput)} ${getDisplayOperator(operation)} ${formatDisplayNumber(curStr)}% =`; previousInput=''; operation=null; }else{ res=curVal/100; history=`${formatDisplayNumber(curStr)}% =`; previousInput=''; operation=null; } if(isNaN(res)||!isFinite(res))throw new Error("Calc Error"); currentInput=res.toString(); resultDisplayed=true; isErrorState=false; updateDisplay(); }catch(e){ handleError(e.message||"Percentage Error"); updateDisplay(); } }
+            function handleFunctionInput(func, value){ if(isErrorState)return; if(func==='pow'){handleOperatorInput(value||'^');return;} let inputSrc=currentInput!==''&&currentInput!=='-'?currentInput:(previousInput!==''?previousInput:''); let calcProdRes=true; let histPfx=''; if(func==='negate'){ if(inputSrc===''||inputSrc==='0'){currentInput='0';hist='';calcProdRes=false;} else if(inputSrc==='-'){currentInput='0';hist='';calcProdRes=false;} else{ try{ let iVal=parseFloat(inputSrc); if(isNaN(iVal))throw Error(); currentInput=(iVal*-1).toString(); calcProdRes=false; hist=''; }catch{handleError("Invalid Input");return;} } }else{ if(inputSrc===''||inputSrc==='-'){handleError("No Input");return;} try{ let iVal=parseFloat(inputSrc); if(isNaN(iVal))throw new Error("Invalid Input"); let res; let fDisp=func; switch(func){ case 'sqrt': if(iVal<0)throw new Error("Sqrt Neg"); res=Math.sqrt(iVal); fDisp='√'; histPfx='sqrt'; break; case 'sin': res=calculateTrig('sin',iVal); histPfx='sin'; break; case 'cos': res=calculateTrig('cos',iVal); histPfx='cos'; break; case 'tan': res=calculateTrig('tan',iVal); histPfx='tan'; break; case 'asin': res=calculateInverseTrig('asin',iVal); fDisp='sin⁻¹'; histPfx='asin'; break; case 'acos': res=calculateInverseTrig('acos',iVal); fDisp='cos⁻¹'; histPfx='acos'; break; case 'atan': res=calculateInverseTrig('atan',iVal); fDisp='tan⁻¹'; histPfx='atan'; break; case 'log': if(iVal<=0)throw new Error("Log Domain"); res=Math.log10(iVal); fDisp='log'; histPfx='log'; break; case 'ln': if(iVal<=0)throw new Error("Ln Domain"); res=Math.log(iVal); fDisp='ln'; histPfx='ln'; break; case 'exp': res=Math.exp(iVal); fDisp='e^'; histPfx='exp'; break; case 'fact': if(iVal<0||!Number.isInteger(iVal))throw new Error("Fact Domain"); if(iVal>170)throw new Error("Overflow"); res=factorial(iVal); fDisp='n!'; histPfx='fact'; break; case 'abs': res=Math.abs(iVal); fDisp='| |'; histPfx='abs'; break; case 'inv': if(iVal===0)throw new Error("Div By Zero"); res=1/iVal; fDisp='1/'; histPfx='reciproc'; break; default:throw new Error("Unknown Func"); } if(isNaN(res)||!isFinite(res)){ if(func.startsWith('a')&&Math.abs(iVal)>1)throw new Error("Domain Error"); if(!isFinite(res))throw new Error("Overflow"); throw new Error("Calc Error"); } history=`${histPfx}(${formatDisplayNumber(inputSrc)}) =`; currentInput=res.toString(); operation=null; previousInput=''; }catch(e){handleError(e.message||"Func Error");return;} } resultDisplayed=calcProdRes; isErrorState=false; }
+            function handleConstantInput(constantName){ if(isErrorState)return; if(CONSTANTS.hasOwnProperty(constantName)){ const cValStr=CONSTANTS[constantName].toString(); if(operation&&previousInput!==''){ currentInput=cValStr; resultDisplayed=false; history=`${formatDisplayNumber(previousInput)} ${getDisplayOperator(operation)} ${constantName}`; }else{ currentInput=cValStr; resultDisplayed=true; history=constantName; previousInput=''; operation=null; } isErrorState=false; } }
+
+            // --- Calculation Logic (performCalculation, evaluate) ---
+            function performCalculation(chaining = false){ if(isErrorState)return false; if(previousInput===''&&operation===null){ if(!chaining&&currentInput!==''&&currentInput!=='-'){ try{ const num=parseFloat(currentInput); if(isNaN(num))throw new Error("Invalid Input"); history=''; resultDisplayed=true; isErrorState=false; updateDisplay(); return true; }catch(e){handleError(e.message||"Invalid Input"); updateDisplay(); return false;} } return false; } if(previousInput===''||operation===null)return false; let op2Str=currentInput; if(op2Str===''||op2Str==='-'){ if(previousInput!==''){op2Str=previousInput;}else{return false;} } try{ const op1=parseFloat(previousInput); const op2=parseFloat(op2Str); if(isNaN(op1)){handleError("Invalid Input"); previousInput=''; operation=null; updateDisplay(); return false;} if(isNaN(op2)){handleError("Invalid Input"); updateDisplay(); return false;} let res=evaluate(op1, op2, operation); if(!chaining){ history=`${formatDisplayNumber(previousInput)} ${getDisplayOperator(operation)} ${formatDisplayNumber(op2Str)} =`; } currentInput=res.toString(); if(!chaining){ operation=null; previousInput=''; resultDisplayed=true; }else{ previousInput=currentInput; history=`${formatDisplayNumber(previousInput)} ${getDisplayOperator(operation)}`; currentInput=''; resultDisplayed=false; } isErrorState=false; if(!chaining) updateDisplay(); return true; }catch(e){ handleError(e.message||"Calc Error"); previousInput=''; operation=null; updateDisplay(); return false; } }
+            function evaluate(v1, v2, op){ let r; switch(op){ case '+': r=v1+v2; break; case '-': r=v1-v2; break; case '*': r=v1*v2; break; case '/': if(v2===0)throw new Error("Div By Zero"); r=v1/v2; break; case '^': r=Math.pow(v1,v2); if(!isFinite(r)||isNaN(r)){if(isNaN(r))throw new Error("Complex Result");else throw new Error("Overflow");} break; default: throw new Error("Unknown Op"); } if(!isFinite(r))throw new Error("Overflow"); return r; }
+
+            // --- Helper Functions (factorial, trig, clear, error etc.) ---
+            function factorial(n){ if(n===0||n===1)return 1; let r=1; for(let i=n; i>1; i--) r*=i; return r; }
+            function calculateTrig(func, value){ const r=angleMode==='Deg'?value*(Math.PI/180):value; let res; switch(func){ case 'sin': res=Math.sin(r); break; case 'cos': const c=r/(Math.PI/2); res=(Math.abs(c-Math.round(c))<1e-15&&Math.round(c)%2!==0)?0:Math.cos(r); break; case 'tan': const t=r/(Math.PI/2); if(Math.abs(t-Math.round(t))<1e-15&&Math.round(t)%2!==0)throw new Error("Tan Undefined"); res=Math.tan(r); break; default: return NaN; } return Math.abs(res)<1e-15?0:res; }
+            function calculateInverseTrig(func, value){ if(Math.abs(value)>1&&(func==='asin'||func==='acos'))throw new Error("Domain Error"); const cV=Math.max(-1,Math.min(1,value)); let rR; switch(func){ case 'asin': rR=Math.asin(cV); break; case 'acos': rR=Math.acos(cV); break; case 'atan': rR=Math.atan(value); break; default: return NaN; } const res=angleMode==='Deg'?rR*(180/Math.PI):rR; return Math.abs(res)<1e-14?0:res; }
+            function toggleAngleMode(){ angleMode=angleMode==='Deg'?'Rad':'Deg'; }
+            function clearEntry(){ if(isErrorState){clearAll();} else{currentInput='0'; resultDisplayed=false; isErrorState=false;} }
+            function clearAll(){ currentInput='0'; previousInput=''; operation=null; history=''; resultDisplayed=false; isErrorState=false; displayCurrent.classList.remove('error-text','small-text','very-small-text'); }
+            function handleError(message){ const msgs={"Div By Zero":"Error: Div Zero","Sqrt Neg":"Error: Sqrt Neg","Log Domain":"Error: Log Domain","Ln Domain":"Error: Ln Domain","Fact Domain":"Error: Fact Domain","Domain Error":"Error: Domain","Tan Undefined":"Error: Tan Undefined","Overflow":"Error: Overflow","Complex Result":"Error: Complex Result","Invalid Number":"Error: Invalid Num","Invalid Input":"Error: Invalid Input","No Input":"Error: No Input","Unknown Func":"Error: Unknown Func","Unknown Op":"Error: Unknown Op","EE Calc Error":"Error: EE Calc","Calc Error":"Error: Calc", "Resistance (R) cannot be zero.":"Error: R cannot be 0", "Current (I) cannot be zero.":"Error: I cannot be 0", "Inputs must be positive for dB.":"Error: dB Input>0", "Frequency/Wavelength cannot be zero.":"Error: f/λ cannot be 0", "Frequency/Capacitance cannot be zero.":"Error: f/C cannot be 0", "Inductance/Capacitance must be positive.":"Error: L/C must be >0", "Resistance (R) must be non-negative.":"Error: R must be >=0", "R/C/L must be positive for filters.":"Error: R/C/L must be >0", "Input validation failed.":"Error: Invalid Input", "Division by zero in Xc calc.":"Error: Div Zero Xc", "Division by zero (R=0).":"Error: Div Zero (R)", "Division by zero (I=0).":"Error: Div Zero (I)", "Calculation resulted in an error (NaN/Infinity).":"Error: Result NaN/Inf"}; currentInput=msgs[message]||"Error: Syntax"; previousInput=''; operation=null; history=''; resultDisplayed=true; isErrorState=true; }
+
+            // --- EE Modal Logic (EE_FORMULAS, show/hide/calc) ---
+            const EE_FORMULAS = { ohms:{name:"Voltage (V = I × R)",inputs:[{id:'i',label:'Current (I) [A]'},{id:'r',label:'Resistance (R) [Ω]'}],unit:'V',calc:(i,r)=>i*r,validate:(i,r)=>r>=0},current:{name:"Current (I = V / R)",inputs:[{id:'v',label:'Voltage (V)'},{id:'r',label:'Resistance (R) [Ω]'}],unit:'A',calc:(v,r)=>v/r,validate:(v,r)=>r!==0},resistance:{name:"Resistance (R = V / I)",inputs:[{id:'v',label:'Voltage (V)'},{id:'i',label:'Current (I) [A]'}],unit:'Ω',calc:(v,i)=>v/i,validate:(v,i)=>i!==0},power_vi:{name:"Power (P = V × I)",inputs:[{id:'v',label:'Voltage (V)'},{id:'i',label:'Current (I) [A]'}],unit:'W',calc:(v,i)=>v*i},power_i2r:{name:"Power (P = I² × R)",inputs:[{id:'i',label:'Current (I) [A]'},{id:'r',label:'Resistance (R) [Ω]'}],unit:'W',calc:(i,r)=>i*i*r,validate:(i,r)=>r>=0},power_v2r:{name:"Power (P = V² / R)",inputs:[{id:'v',label:'Voltage (V)'},{id:'r',label:'Resistance (R) [Ω]'}],unit:'W',calc:(v,r)=>(v*v)/r,validate:(v,r)=>r!==0},db_power:{name:"dB Power Gain",inputs:[{id:'p2',label:'Output Power (P₂)'},{id:'p1',label:'Input Power (P₁)'}],unit:'dB',calc:(p2,p1)=>10*Math.log10(p2/p1),validate:(p2,p1)=>p1>0&&p2>0},db_voltage:{name:"dB Voltage Gain",inputs:[{id:'v2',label:'Output Voltage (V₂)'},{id:'v1',label:'Input Voltage (V₁)'}],unit:'dB',calc:(v2,v1)=>20*Math.log10(v2/v1),validate:(v2,v1)=>v1>0&&v2>0},freq_wl:{name:"Wavelength (λ = c / f)",inputs:[{id:'f',label:'Frequency (f) [Hz]'}],unit:'m',calc:(f)=>CONSTANTS.C/f,validate:(f)=>f!==0},wl_freq:{name:"Frequency (f = c / λ)",inputs:[{id:'lambda',label:'Wavelength (λ) [m]'}],unit:'Hz',calc:(lambda)=>CONSTANTS.C/lambda,validate:(lambda)=>lambda!==0},react_cap:{name:"Capacitive Reactance (Xc)",inputs:[{id:'f',label:'Frequency (f) [Hz]'},{id:'c',label:'Capacitance (C) [F]'}],unit:'Ω',calc:(f,c)=>1/(TWO_PI*f*c),validate:(f,c)=>f!==0&&c!==0},react_ind:{name:"Inductive Reactance (Xʟ)",inputs:[{id:'f',label:'Frequency (f) [Hz]'},{id:'l',label:'Inductance (L) [H]'}],unit:'Ω',calc:(f,l)=>TWO_PI*f*l},res_freq:{name:"Resonant Frequency (fᵣ)",inputs:[{id:'l',label:'Inductance (L) [H]'},{id:'c',label:'Capacitance (C) [F]'}],unit:'Hz',calc:(l,c)=>1/(TWO_PI*Math.sqrt(l*c)),validate:(l,c)=>l>0&&c>0},impedance_rlc:{name:"RLC Impedance (Z)",inputs:[{id:'r',label:'Resistance (R) [Ω]'},{id:'xl',label:'Ind. Reactance (Xʟ) [Ω]'},{id:'xc',label:'Cap. Reactance (Xc) [Ω]'}],unit:'Ω',calc:(r,xl,xc)=>Math.sqrt(r*r+Math.pow(xl-xc,2)),validate:(r,xl,xc)=>r>=0},filter_rc_lp:{name:"RC Low-Pass Cutoff (fᴄ)",inputs:[{id:'r',label:'Resistance (R) [Ω]'},{id:'c',label:'Capacitance (C) [F]'}],unit:'Hz',calc:(r,c)=>1/(TWO_PI*r*c),validate:(r,c)=>r>0&&c>0},filter_rl_hp:{name:"RL High-Pass Cutoff (fᴄ)",inputs:[{id:'r',label:'Resistance (R) [Ω]'},{id:'l',label:'Inductance (L) [H]'}],unit:'Hz',calc:(r,l)=>r/(TWO_PI*l),validate:(r,l)=>r>0&&l>0},};
+            function showEEModal(id){ activeEEFunc=id; const f=EE_FORMULAS[id]; if(!f)return; eeModalTitle.textContent=f.name; eeModalInputsContainer.innerHTML=''; eeModalError.textContent=''; f.inputs.forEach(i=>{const g=document.createElement('div'); g.className='ee-modal-input-group'; const l=document.createElement('label'); l.htmlFor=`ee-input-${i.id}`; l.textContent=i.label; const n=document.createElement('input'); n.type='number'; n.step='any'; n.id=`ee-input-${i.id}`; n.dataset.id=i.id; n.placeholder=`Enter ${i.id.toUpperCase()}`; n.setAttribute('aria-label',i.label); g.appendChild(l); g.appendChild(n); eeModalInputsContainer.appendChild(g);}); eeModalOverlay.classList.add('visible'); eeModalOverlay.setAttribute('aria-hidden','false'); setTimeout(()=>{const first=eeModalInputsContainer.querySelector('input'); if(first)first.focus();},50); }
+            function hideEEModal(){ eeModalOverlay.classList.remove('visible'); eeModalOverlay.setAttribute('aria-hidden','true'); activeEEFunc=null; }
+            function handleEEModalCalculate(){ if(!activeEEFunc)return; const f=EE_FORMULAS[activeEEFunc]; if(!f)return; eeModalError.textContent=''; const iVals={}; let pErr=false; let mId=null; f.inputs.forEach(i=>{ if(pErr)return; const el=document.getElementById(`ee-input-${i.id}`); const raw=el.value.trim(); if(raw===''){mId=i.id.toUpperCase(); pErr=true; return;} const val=parseFloat(raw); if(isNaN(val)){eeModalError.textContent=`Error: Invalid number for ${i.id.toUpperCase()}.`; pErr=true; return;} iVals[i.id]=val; }); if(pErr){if(mId)eeModalError.textContent=`Error: Input for ${mId} is missing.`; const bad=f.inputs.map(info=>document.getElementById(`ee-input-${info.id}`)).find(el=>el.value.trim()===''||isNaN(parseFloat(el.value.trim()))); if(bad)bad.focus(); return;} const oVals=f.inputs.map(info=>iVals[info.id]); try{ if(f.validate&&!f.validate(...oVals)){ if(activeEEFunc==='current'&&oVals[1]===0)throw new Error("Resistance (R) cannot be zero."); if(activeEEFunc==='resistance'&&oVals[1]===0)throw new Error("Current (I) cannot be zero."); /* ... other specific errors ... */ throw new Error("Input validation failed."); } const res=f.calc(...oVals); if(isNaN(res)||!isFinite(res)){/*... specific div zero errors ...*/ throw new Error("Calculation resulted in an error (NaN/Infinity)."); } clearAll(); currentInput=res.toString(); history=`${f.name.split('(')[0].trim()} = ${formatDisplayNumber(res)}${f.unit?' '+f.unit:''}`; resultDisplayed=true; isErrorState=false; hideEEModal(); updateDisplay(); }catch(e){ eeModalError.textContent=`Error: ${e.message||"Calculation failed"}`; console.error("EE Calc Error:",e); } }
+
+             // --- NEW: Privacy Modal Functions ---
+             function showPrivacyModal() {
+                 privacyModalOverlay.classList.add('visible');
+                 privacyModalOverlay.setAttribute('aria-hidden', 'false');
+                 privacyModalCloseButton.focus(); // Focus the close button for accessibility
+             }
+             function hidePrivacyModal() {
+                 privacyModalOverlay.classList.remove('visible');
+                 privacyModalOverlay.setAttribute('aria-hidden', 'true');
+                 // Optionally focus back the link that opened it
+                 privacyPolicyLink.focus();
+             }
+
+            // --- Initialization ---
+            const savedTheme = localStorage.getItem('calculatorTheme');
+            if (savedTheme === 'light') { calculatorBody.classList.add('light-theme'); }
+            themeToggleButton.textContent = calculatorBody.classList.contains('light-theme') ? '🌙 Dark' : '☀️ Light';
+            updateDisplay();
+            buttonPanels.forEach(panel => { panel.setAttribute('aria-hidden', !panel.classList.contains('active')); });
+            eeModalOverlay.setAttribute('aria-hidden', 'true');
+            privacyModalOverlay.setAttribute('aria-hidden', 'true'); // Init privacy modal as hidden
+
+        }); // End DOMContentLoaded
+    </script>
+</body>
+</html>
